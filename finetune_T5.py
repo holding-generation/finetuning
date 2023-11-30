@@ -3,27 +3,17 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch.nn as nn
 import torch.optim as optim
 import transformers
-from transformers import LlamaForCausalLM, LlamaTokenizer
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, LongT5ForConditionalGeneration
 import pandas as pd
 import sys
 
 NUM_EPOCHS = 5
 
 def finetune(csv_name):
-    with open('hf_token.txt', 'r') as file:
-        huggingface_token = file.read().strip()
-    
-    model_dir = "./Llama-2-7b-hf"
-    # print(f"loading model from {model_dir}")
-    # model = LlamaForCausalLM.from_pretrained(model_dir)
-    # tokenizer = LlamaTokenizer.from_pretrained(model_dir)
-
-    # This was how HF said to use the model but I also git cloned the weight directly into GCP so use above.
-    # Above method seems to be broken.
+    model_name = "google/long-t5-local-base"
     print("Try loading model from HuggingFace")
-    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=huggingface_token)
-    model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", token=huggingface_token)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = LongT5ForConditionalGeneration.from_pretrained(model_name)
     
     print("Reading the CSV")
     df = pd.read_csv(csv_name)
@@ -61,8 +51,8 @@ def finetune(csv_name):
         print(f"Epoch {epoch+1}, Loss: {loss.item()}")
     
     print("You did it, saving the finetuned model.")
-    model.save_pretrained('Llama2_finetuned')
-    tokenizer.save_pretrained('Llama2_finetuned')
+    model.save_pretrained('T5_finetuned')
+    tokenizer.save_pretrained('T5_finetuned')
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
