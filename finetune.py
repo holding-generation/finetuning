@@ -8,7 +8,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import pandas as pd
 import sys
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 3
 
 def finetune(csv_name):
     with open('hf_token.txt', 'r') as file:
@@ -21,15 +21,18 @@ def finetune(csv_name):
 
     # This was how HF said to use the model but I also git cloned the weight directly into GCP so use above.
     # Above method seems to be broken.
-    print("Try loading model from HuggingFace")
+    print("Try loading tokenizer from HuggingFace")
     tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf", token=huggingface_token)
+    print("Try loading model from HuggingFace")
     model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", token=huggingface_token)
     
     print("Reading the CSV")
     df = pd.read_csv(csv_name)
 
     # Tokenize
+    print("Tokenize the inputs")
     inputs = tokenizer(df['input'].tolist(), max_length=512, padding='max_length', truncation=True, return_tensors="pt")
+    print("Tokenize the outputs")
     outputs = tokenizer(df['output'].tolist(), max_length=128, padding='max_length', truncation=True, return_tensors="pt")
 
     # Create a dataset
@@ -37,13 +40,14 @@ def finetune(csv_name):
     dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'], outputs['input_ids'])
 
     # Create a DataLoader
+    print("Create data loader")
     loader = DataLoader(dataset, batch_size=32, shuffle=True)
-
+    print("Create optimizer")
     optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 
     print("Training the model")
     model.train()
-
+    print(f"Train for {NUM_EPOCHS} epochs")
     for epoch in range(NUM_EPOCHS):
         print(f"Running epoch {epoch+1}")
         for batch in loader:

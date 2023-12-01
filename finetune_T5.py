@@ -7,7 +7,7 @@ from transformers import AutoTokenizer, LongT5ForConditionalGeneration
 import pandas as pd
 import sys
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 3
 
 def finetune(csv_name):
     model_name = "google/long-t5-local-base"
