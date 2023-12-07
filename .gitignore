@@ -9,6 +9,19 @@ __pycache__/
 # HuggingFace token file
 hf_token.txt
 
+# ssh keys
+.ssh
+
+# Finetuning dataset
+cleaned_test_dataset.csv
+cleaned_train_dataset.csv
+cleaned_val_dataset.csv
+test_set_for_jesse.csv
+test_set_for_jesse_clean.csv
+
+# virtual environment
+holdingtune-env
+
 # Distribution / packaging
 .Python
 build/

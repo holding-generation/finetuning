@@ -1,9 +1,5 @@
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-import torch.nn as nn
-import torch.optim as optim
-import transformers
-from transformers import LlamaForCausalLM, LlamaTokenizer
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import pandas as pd
 import sys
@@ -31,7 +27,8 @@ def finetune(csv_name):
 
     # Tokenize
     print("Tokenize the inputs")
-    inputs = tokenizer(df['input'].tolist(), max_length=512, padding='max_length', truncation=True, return_tensors="pt")
+    tokenizer.pad_token = tokenizer.eos_token
+    inputs = tokenizer(df['input'].tolist(), max_length=1024, padding='max_length', truncation=True, return_tensors="pt")
     print("Tokenize the outputs")
     outputs = tokenizer(df['output'].tolist(), max_length=128, padding='max_length', truncation=True, return_tensors="pt")
 
@@ -51,21 +48,28 @@ def finetune(csv_name):
     for epoch in range(NUM_EPOCHS):
         print(f"Running epoch {epoch+1}")
         for batch in loader:
+            print("Assign values from the batch")
             input_ids, attention_mask, labels = batch
 
             # Forward pass
+            print("Do the forward pass")
             outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+            print("Record loss")
             loss = outputs.loss
 
             # Backward pass and optimization
+            print("Do zero_grad")
             optimizer.zero_grad()
+            print("Do the backwards pass")
             loss.backward()
+            print("Call step()")
             optimizer.step()
 
         print(f"Epoch {epoch+1}, Loss: {loss.item()}")
     
     print("You did it, saving the finetuned model.")
     model.save_pretrained('Llama2_finetuned')
+    print("Save the tokenizer")
     tokenizer.save_pretrained('Llama2_finetuned')
 
 if __name__ == "__main__":
