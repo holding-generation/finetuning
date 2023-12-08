@@ -130,9 +130,12 @@ def my_predict(predict_csv_name, model_path):
     average_loss = total_loss / len(data_loader)
     print(f"Average Loss: {average_loss}")
     # Get and write the rouge scores
+    print("Calculate Rouge Scores")
+    rouge = Rouge()
     rouge_scores = rouge.get_scores(hypotheses, references, avg=True)
-
-    with open('rouge_scores.txt', 'w') as file:
+    rouge_file = "rouge_scores.txt"
+    print(f"Store Rouge scores in {rouge_file}")
+    with open(rouge_file, 'w') as file:
         file.write(f"Average Loss: {average_loss}\n")
         for key, value in rouge_scores.items():
             file.write(f"{key}: {value}\n")

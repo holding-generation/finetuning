@@ -1,13 +1,16 @@
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import torch
-from torch.utils.data import TensorDataset, Dataset
+from torch.nn import CrossEntropyLoss
+from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer, LongT5ForConditionalGeneration, Trainer, TrainingArguments
+from rouge import Rouge
 import pandas as pd
 import numpy as np
 import sys
+import csv
 
-NUM_EPOCHS = 1
+NUM_EPOCHS = 4
 INPUT_MAX_LENGTH = 4096 # use 2048 on a T4
 OUTPUT_MAX_LENGTH = 128
 BATCH_SIZE = 1
@@ -82,9 +85,11 @@ def finetune(train_csv_name, val_csv, test_csv):
         per_device_eval_batch_size=BATCH_SIZE,
         # gradient_checkpointing=True,
         # learning_rate=2.5e-5,
+        save_steps=500,
+        save_total_limit=5,
         warmup_steps=500,
         weight_decay=0.01,
-        fp16=True,
+        # fp16=True,
         logging_dir='./logs',
         logging_steps=10,
     )
@@ -106,29 +111,68 @@ def finetune(train_csv_name, val_csv, test_csv):
     print("Performing validation")
     trainer.evaluate(eval_dataset=val_dataset)
 
-    print("clear cache to hopefully free up memory")
-    model.config.use_cache = False
+    # Manual testing loop
 
-    print("Testing the model")
-    res = trainer.predict(test_dataset)
-    print(res.metrics)
+    print("Test the model manually with pytorch because GPU memory")
+    data_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+    model.eval()
+    loss_function = CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
+    total_loss = 0
+    num = 0
+    references = []
+    hypotheses = []
+    prediction_csv_name = 'T5_predictions.csv'
 
-    print("Save the predictions")
-    np.save("test_predictions.npy", res.predictions)
+    print("Start predicting")
+    # Write the results
+    with open(prediction_csv_name, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Input', 'Prediction', 'Reference', 'Loss'])
+    
+        with torch.no_grad():
+            for i, batch in enumerate(data_loader):
+                print(f"predict on the input number {num+1}")
+                num += 1
+                input_ids = batch['input_ids'].to(model.device)
+                attention_mask = batch['attention_mask'].to(model.device)
+                labels = batch['labels'].to(model.device)
 
-    print("Save the metrics")
-    with open("test_metrics.txt", "w") as file:
-        for key, value in res.metrics.items():
+                # Generate outputs
+                outputs = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=OUTPUT_MAX_LENGTH)
+                prediction_logits = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels).logits
+
+                # Calculate loss
+                loss = loss_function(prediction_logits.view(-1, model.config.vocab_size), labels.view(-1))
+                total_loss += loss.item()
+
+                # Find all values to store
+                input_text = df['input'].iloc[i]
+                reference_text = df['output'].iloc[i]
+                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+                # Store to lists for ROUGE calculation
+                hypotheses.append(generated_text)
+                references.append(reference_text)
+
+                # Write to file
+                writer.writerow([input_text, generated_text, reference_text, loss.item()])
+
+    average_loss = total_loss / len(data_loader)
+    print(f"Average Loss: {average_loss}")
+
+    # Get and write the rouge scores
+    print("Calculate Rouge Scores")
+    rouge = Rouge()
+    rouge_scores = rouge.get_scores(hypotheses, references, avg=True)
+    rouge_file = "rouge_scores.txt"
+
+    print(f"Store Rouge scores in {rouge_file}")
+    with open(rouge_file, 'w') as file:
+        file.write(f"Average Loss: {average_loss}\n")
+        for key, value in rouge_scores.items():
             file.write(f"{key}: {value}\n")
-
-    print("View an arbitrary input and output pair")
-    input_text = df.iloc[4]['input'] # magic arbitrary number for index.
-    fifth_prediction_id = res.predictions[4]
-
-    fifth_prediction_text = tokenizer.decode(fifth_prediction_id, skip_special_tokens=True)
-    print("Input:", input_text)
-    print("Generated text:", fifth_prediction_text)
-
+    
+    
 if __name__ == "__main__":
     if len(sys.argv) > 3: # Don't forget to change this if you change the inputs
         print("Good job dummy, starting the finetuning script")

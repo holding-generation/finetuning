@@ -9,6 +9,10 @@ __pycache__/
 # HuggingFace token file
 hf_token.txt
 
+# Metrics
+Metrics
+metrics-env
+
 # ssh keys
 .ssh
 
@@ -18,6 +22,10 @@ cleaned_train_dataset.csv
 cleaned_val_dataset.csv
 test_set_for_jesse.csv
 test_set_for_jesse_clean.csv
+cleaned_test_qlora.jsonl
+cleaned_train_qlora.jsonl
+cleaned_val_qlora.jsonl
+all_data.zip
 
 # virtual environment
 holdingtune-env
