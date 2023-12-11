@@ -26,6 +26,8 @@ cleaned_test_qlora.jsonl
 cleaned_train_qlora.jsonl
 cleaned_val_qlora.jsonl
 all_data.zip
+T5_predictions.csv
+longformer_predictions.csv
 
 # virtual environment
 holdingtune-env
