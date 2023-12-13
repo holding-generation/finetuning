@@ -13,15 +13,11 @@ def convert(csv_file_path, jsonl_file_path):
     # Open a file to write the JSONL content
     with open(jsonl_file_path, 'w') as file:
         for index, row in df.iterrows():
-            # there shouldn't be candidates larger than 128 but 512 is the max input size for BLEURT
-            if pd.isna(row["Prediction"]):
-                truncated_candidate = "Nothing here"
-            else:
-                truncated_candidate = truncate_to_limit(row["Prediction"], 256)
-            truncated_reference = truncate_to_limit(row["Reference"], 256)
+            truncated_input = truncate_to_limit(row["Input"], 3900)
+            truncated_output = truncate_to_limit(row["Prediction"], 128)
 
             # Create a JSON object for each row
-            json_object = {"candidate": truncated_candidate, "reference": truncated_reference}
+            json_object = {"document": {"text": truncated_input}, "claim": truncated_output}
             
             
             # Write the JSON object to the file
