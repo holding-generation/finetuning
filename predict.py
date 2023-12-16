@@ -57,7 +57,7 @@ class CustomDataset(Dataset):
 def my_predict(predict_csv_name, model_path):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = LongT5ForConditionalGeneration.from_pretrained(model_path)
-
+    # The dataset that you want to run prediction over, so either val or test
     df = pd.read_csv(predict_csv_name)
     dataset = CustomDataset(tokenizer, df, INPUT_MAX_LENGTH, OUTPUT_MAX_LENGTH)
 

@@ -133,7 +133,6 @@ def finetune(train_csv_name, val_csv, test_csv):
     prediction_csv_name = f'{MODEL_NAME}_predictions.csv'
 
     print("Start predicting")
-    # Write the results
     with open(prediction_csv_name, 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(['Input', 'Prediction', 'Reference', 'Loss'])
@@ -146,24 +145,19 @@ def finetune(train_csv_name, val_csv, test_csv):
                 attention_mask = batch['attention_mask'].to(model.device)
                 labels = batch['labels'].to(model.device)
 
-                # Generate outputs
                 outputs = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=OUTPUT_MAX_LENGTH)
                 prediction_logits = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels).logits
 
-                # Calculate loss
                 loss = loss_function(prediction_logits.view(-1, model.config.vocab_size), labels.view(-1))
                 total_loss += loss.item()
 
-                # Find all values to store
                 input_text = df['input'].iloc[i]
                 reference_text = df['output'].iloc[i]
                 generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-                # Store to lists for ROUGE calculation
                 hypotheses.append(generated_text)
                 references.append(reference_text)
 
-                # Write to file
                 writer.writerow([input_text, generated_text, reference_text, loss.item()])
 
     average_loss = total_loss / len(data_loader)

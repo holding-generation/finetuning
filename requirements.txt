@@ -4,3 +4,4 @@ pandas
 numpy
 accelerate>=0.25.0
 rouge
+summac
