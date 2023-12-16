@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer, LongT5ForConditionalGeneration, Trainer, TrainingArguments
 from rouge import Rouge
 import pandas as pd
-import numpy as np
 import sys
 import csv
 
@@ -15,6 +14,10 @@ INPUT_MAX_LENGTH = 4096 # use 2048 on a T4
 OUTPUT_MAX_LENGTH = 128
 BATCH_SIZE = 1
 
+# After debugging with chatGPT, I learned that I needed to use a custom dataset.
+# Using chatGPT along with the instructions from this website, 
+# https://towardsdatascience.com/fine-tuning-a-t5-transformer-for-any-summarization-task-82334c64c81
+# I came up with the following data object.
 class CustomDataset(Dataset):
     def __init__(self, tokenizer, df, max_input_length, max_output_length):
         self.tokenizer = tokenizer
@@ -73,6 +76,7 @@ def finetune(train_csv_name, val_csv, test_csv):
     outputs = tokenizer(df['output'].tolist(), max_length=OUTPUT_MAX_LENGTH, padding='max_length', truncation=True, return_tensors="pt")
 
     # dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'], outputs['input_ids'])
+    # For some reason tensor dataset was also an error, so I had to define a custom dataset
 
     print("Training the model")
     # model.config.use_cache = False
@@ -83,13 +87,12 @@ def finetune(train_csv_name, val_csv, test_csv):
         num_train_epochs=NUM_EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
-        # gradient_checkpointing=True,
-        # learning_rate=2.5e-5,
+        # gradient_checkpointing=True, # This was causing an error for some reason
         save_steps=500,
         save_total_limit=5,
         warmup_steps=500,
         weight_decay=0.01,
-        # fp16=True,
+        # fp16=True, # Using this tends to hide display of loss rate
         logging_dir='./logs',
         logging_steps=10,
     )
@@ -112,6 +115,10 @@ def finetune(train_csv_name, val_csv, test_csv):
     trainer.evaluate(eval_dataset=val_dataset)
 
     # Manual testing loop
+    # For some reason trainer.predict was causing an OOM error, so I had to 
+    # implement training manually. I had chatGPT get me started with the 
+    # structure of the loop and the function calls and then I modified, for
+    # example by setting batch size to 1 and setting it to calculate ROUGE scores.
 
     print("Test the model manually with pytorch because GPU memory")
     data_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
@@ -124,7 +131,6 @@ def finetune(train_csv_name, val_csv, test_csv):
     prediction_csv_name = 'T5_predictions.csv'
 
     print("Start predicting")
-    # Write the results
     with open(prediction_csv_name, 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(['Input', 'Prediction', 'Reference', 'Loss'])
@@ -137,15 +143,12 @@ def finetune(train_csv_name, val_csv, test_csv):
                 attention_mask = batch['attention_mask'].to(model.device)
                 labels = batch['labels'].to(model.device)
 
-                # Generate outputs
                 outputs = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=OUTPUT_MAX_LENGTH)
                 prediction_logits = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels).logits
 
-                # Calculate loss
                 loss = loss_function(prediction_logits.view(-1, model.config.vocab_size), labels.view(-1))
                 total_loss += loss.item()
 
-                # Find all values to store
                 input_text = df['input'].iloc[i]
                 reference_text = df['output'].iloc[i]
                 generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -154,7 +157,6 @@ def finetune(train_csv_name, val_csv, test_csv):
                 hypotheses.append(generated_text)
                 references.append(reference_text)
 
-                # Write to file
                 writer.writerow([input_text, generated_text, reference_text, loss.item()])
 
     average_loss = total_loss / len(data_loader)

@@ -10,7 +10,8 @@ __pycache__/
 hf_token.txt
 
 # Metrics
-Metrics
+metrics/QAFactEval
+metrics/bleurt
 metrics-env
 
 # ssh keys

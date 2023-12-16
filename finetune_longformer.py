@@ -16,6 +16,10 @@ OUTPUT_MAX_LENGTH = 128
 BATCH_SIZE = 1
 MODEL_NAME = 'longformer'
 
+# After debugging with chatGPT, I learned that I needed to use a custom dataset.
+# Using chatGPT along with the instructions from this website, 
+# https://towardsdatascience.com/fine-tuning-a-t5-transformer-for-any-summarization-task-82334c64c81
+# I came up with the following data object.
 class CustomDataset(Dataset):
     def __init__(self, tokenizer, df, max_input_length, max_output_length):
         self.tokenizer = tokenizer
@@ -85,14 +89,13 @@ def finetune(train_csv_name, val_csv, test_csv):
         num_train_epochs=NUM_EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
-        # gradient_checkpointing=True,
-        # learning_rate=2.5e-5,
+        # gradient_checkpointing=True, # This was causing an error for some reason
         save_steps=500,
         save_total_limit=5,
         gradient_accumulation_steps=4,
         warmup_steps=500,
         weight_decay=0.01,
-        # fp16=True,
+        # fp16=True, # Using this causes trainer to not display loss
         logging_dir=f'./{MODEL_NAME}_logs',
         logging_steps=10,
     )
@@ -115,7 +118,10 @@ def finetune(train_csv_name, val_csv, test_csv):
     trainer.evaluate(eval_dataset=val_dataset)
 
     # Manual testing loop
-
+    # For some reason trainer.predict was causing an OOM error, so I had to 
+    # implement training manually. I had chatGPT get me started with the 
+    # structure of the loop and the function calls and then I modified, for
+    # example by setting batch size to 1 and setting it to calculate ROUGE scores.
     print("Test the model manually with pytorch because GPU memory")
     data_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
     model.eval()
