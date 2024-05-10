@@ -11,9 +11,12 @@ hf_token.txt
 
 # Scraped data
 freelaw_scrape/court_listener_token.txt
-freelaw_scrape/parentheticals-2023-12-04.csv
+freelaw_scrape/parentheticals-2024-03-11.csv
 freelaw_scrape/scrape_checkpoint.csv
 freelaw_scrape/scrape_checkpoint.json
+freelaw_scrape/scrape_checkpoint_1.json
+freelaw_scrape/scrape_checkpoint_2.json
+freelaw_scrape/scrape_checkpoint_final.json
 court_listener_token.txt
 
 # Metrics
